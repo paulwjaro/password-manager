@@ -1,13 +1,12 @@
 from tkinter import *
 from tkinter import messagebox
+import json
 import random
 import pyperclip
 
 window = Tk()
 window.config(padx=50, pady=50)
 window.title("Lock & Key")
-
-info_list = []
 # ---------------------------- PASSWORD GENERATOR ------------------------------- #
 
 letters = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v",
@@ -30,7 +29,7 @@ def random_password():
 
     random.shuffle(new_pass)
 
-    random_pass = '\n'.join(new_pass)
+    random_pass = ''.join(new_pass)
 
     pass_entry.delete(0, END)
     pass_entry.insert(0, random_pass)
@@ -41,35 +40,51 @@ def random_password():
 
 def save_password():
     if len(website_entry.get()) != 0 or len(user_entry.get()) != 0 or len(pass_entry.get()) != 0:
-        new_pass = {
-            "website": website_entry.get(),
-            "user": user_entry.get(),
-            "password": pass_entry.get(),
+        new_login = {
+            website_entry.get(): {
+                "user": user_entry.get(),
+                "password": pass_entry.get(),
+            },
         }
-        info_list.append(new_pass)
+        try:
+            with open("saved_passwords.json", "r") as data_file:
+                data = json.load(data_file)
 
-        is_okay = messagebox.askokcancel(title=new_pass["website"],
-                                         message=f"You have selected the following information"
-                                                 f" for {new_pass['website']}. \n Username:"
-                                                 f" {new_pass['user']}\n Password:"
-                                                 f" {new_pass['password']}\n Is this correct?")
-        if is_okay:
-            with open("saved_passwords.txt", mode="w") as logins:
-                for login in info_list:
-                    logins.write(login["website"] + " | " + login["user"] + " | " + login["password"] + "\n")
-
+        except FileNotFoundError:
+            with open("saved_passwords.json", "w") as data_file:
+                json.dump(new_login, data_file, indent=4)
+        else:
+            data.update(new_login)
+            with open("saved_passwords.json", mode="w") as logins:
+                json.dump(data, logins, indent=4)
+        finally:
             website_entry.delete(0, END)
             user_entry.delete(0, END)
             pass_entry.delete(0, END)
 
-            website_entry.focus()
-            user_entry.insert(0, "paul.jaro@me.com")
-        else:
-            info_list.pop()
-            pass_entry.focus()
-            pass_entry.delete(0, END)
+        website_entry.focus()
+        user_entry.insert(0, "paul.jaro@me.com")
     else:
         messagebox.showinfo(title="Password Error", message="Please fill in all the fields to add a password.")
+
+
+def search_logins():
+    try:
+        with open("saved_passwords.json", "r") as data_file:
+            data = json.load(data_file)
+    except FileNotFoundError:
+        messagebox.showinfo(title="Account Info", message="Sorry, there is no account information available.")
+    else:
+        try:
+            website = website_entry.get()
+            pyperclip.copy(data[website]['password'])
+            messagebox.showinfo(title="Account Info", message=f"Here is you account information for {website}:\n"
+                                                              f"User/Email: {data[website]['user']}\n"
+                                                              f"Password: {data[website]['password']}\n\n"
+                                                              f"Password copied to clipboad!")
+        except KeyError:
+            website = website_entry.get()
+            messagebox.showinfo(title="Account Info", message=f"Sorry, there is no account info for {website}")
 
 
 # ---------------------------- UI SETUP ------------------------------- #
@@ -95,9 +110,9 @@ pass_label.grid(row=4, column=0)
 
 # -- Set Up Input
 website_entry = Entry()
-website_entry.config(width=35)
+website_entry.config(width=21)
 website_entry.focus()
-website_entry.grid(row=2, column=1, columnspan=2)
+website_entry.grid(row=2, column=1)
 
 user_entry = Entry()
 user_entry.config(width=35)
@@ -115,5 +130,9 @@ gen_button.grid(row=4, column=2)
 add_button = Button(text="Add", command=save_password)
 add_button.config(width=32)
 add_button.grid(row=5, column=1, columnspan=2)
+
+search_button = Button(text="Search", command=search_logins)
+search_button.grid(row=2, column=2)
+
 
 window.mainloop()
